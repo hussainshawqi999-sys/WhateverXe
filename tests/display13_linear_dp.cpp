@@ -76,6 +76,7 @@ int main() {
         assert(r.status==LinearStatus::Success && dpSourceUnchanged(io,boot,pipe,ddi,0,nullptr,true));
         io.regs[0x60540+0x1000*pipe]^=64;assert(!dpSourceUnchanged(io,boot,pipe,ddi,0,nullptr,true));
     }
+    WEXTrial::sixBpcPanel()=true; // the trial gate is opened by -wextry at runtime
     // eDP panels often run 6 bpc (TRANS_DDI_FUNC_CTL bits 22:20 = 2) with dithering from the
     // 8-bpc plane. Accept it only as a panel source; every other depth, and external DP, stays rejected.
     for(unsigned ddi=0;ddi<2;++ddi)for(unsigned pipe=0;pipe<3;++pipe)for(unsigned bpc=1;bpc<8;++bpc) {

@@ -3862,6 +3862,9 @@ extern "C" __attribute__((naked, used)) void tglGuCDMAWriteBridge() {
 
 void XE::init() {
     callbackXE = this;
+    // Dell 5440 trial gate: accept the 6-bpc panel only on an explicit -wextry boot.
+    WEXTrial::sixBpcPanel()=checkKernelArgument("-wextry");
+    IORegistryEntry::getRegistryRoot()->setProperty("WEXTrialSixBpc",WEXTrial::sixBpcPanel());
     // Register notifications before Lilu closes registration. Actual family
     // selection waits for published PCI config space in processKernel.
     lilu.onKextLoadForce(&kextAppleIntelTGLCompat);
