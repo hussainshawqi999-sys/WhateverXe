@@ -7634,7 +7634,7 @@ uint8_t *XE::display13SSTPort(void *port) {
  auto p=static_cast<uint8_t *>(port);auto config=Display13FBMemory::field<uint32_t *>(p,0x548);
  if(!Display13FBTopology::selected(s->adlnPlatform,config,s->adlnOutputWiring) ||
     !(s->adlnOutputWiring.links()&(1U<<config[0])) || p[0x117] ||
-    Display13FBMemory::field<uint32_t>(p,0x120)!=config[0] || Display13FBMemory::field<uint32_t>(p,0x550)!=(config[0]>=3?((s->adlnOutputWiring.typeC&(1U<<config[0]))?3U:4U):1U) ||
+    Display13FBMemory::field<uint32_t>(p,0x120)!=config[0] || (Display13FBMemory::field<uint32_t>(p,0x550)!=(config[0]>=3?((s->adlnOutputWiring.typeC&(1U<<config[0]))?3U:4U):1U) && /* eDP port field 0x550 */!(config[0]<2 && (s->adlnOutputWiring.panel&(1U<<config[0])) && !Display13FBMemory::field<uint32_t>(p,0x550))) ||
     Display13FBMemory::field<void *>(p,0x578)!=c.access)return nullptr;
  return p;
 }
@@ -9232,7 +9232,15 @@ void XE::adlnSetDualClock(IOService *controller,uint64_t nativeHz) {
         if(ready) {
             evidence[7]=reinterpret_cast<bool (*)(const IOWorkLoop *)>(callbackXE->adlnWorkLoopInGate)(loop);
             if(!evidence[7]) {
-                ready=reinterpret_cast<bool (*)(IOWorkLoop *)>(callbackXE->adlnWorkLoopTryClose)(loop);
+                // Retry the gate (RUV2005, WhateverXe #102/#104): a single lost TryClose race
+                // silently drops the CDCLK commit and leaves the eDP plane dark.
+                unsigned tries=0;
+                for(;;) {
+                    ready=reinterpret_cast<bool (*)(IOWorkLoop *)>(callbackXE->adlnWorkLoopTryClose)(loop);
+                    if(ready || tries>=50)break;
+                    ++tries;IOLockUnlock(c.lock);IOSleep(1);IOLockLock(c.lock);
+                }
+                evidence[27]=tries;
                 if(ready) {acquired=loop;evidence[8]=1;}
             }
         }
